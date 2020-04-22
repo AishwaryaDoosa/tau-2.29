@@ -1,0 +1,677 @@
+*****************************************************************************
+**			TAU Performance System(R)                          **
+**			http://tau.uoregon.edu                             **
+*****************************************************************************
+**    Copyright 1997-2020				   	   	   **
+**    Department of Computer and Information Science, University of Oregon **
+**    Advanced Computing Laboratory, Los Alamos National Laboratory        **
+**    Research Center Juelich, ZAM Germany			           **
+*****************************************************************************
+/*******************************************************************
+ *                                                                 *
+ *        Tuning and Analysis Utilities Installation Procedure     *
+ *                           Version 2.29                          *
+ *                                                                 *
+ *******************************************************************
+ *    For installation help, see INSTALL.                          *
+ *    For release notes, see README.                               *
+ *    For JAVA instructions, see README.JAVA                       *
+ *    For licensing information, see LICENSE.                      *
+ *    For a tutorial on using TAU, open html/index.html in your    *
+ *        web browser.                                             *
+ *    For more information, including updates and new releases,    *
+ *        see http://tau.uoregon.edu                               *
+ *    For help, reporting bugs, and making suggestions, please     *
+ *        send e-mail to tau-bugs@cs.uoregon.edu                   *
+ *******************************************************************/
+/* NOTE: PLEASE REFER TO tools/src/contrib/LICENSE* files for open *
+ * source licenses of other packages that TAU uses internally.     *
+ *******************************************************************/
+
+
+General Installation Procedure: 
+-------------------------------
+Microsoft Windows users should refer to instructions in README.WINDOWS.txt. 
+
+
+
+Quickstart Guide:
+=================
+Typically, you will need third party libraries to use with TAU. We have created
+an external third party library package that contains libunwind, binutils, 
+OMPT, Weka, etc. You may download it from:
+http://tau.uoregon.edu/ext.tgz
+You may also download the Program Database Toolkit (PDT) package from:
+http://tau.uoregon.edu/pdt.tgz
+
+PDT is installed using ./configure ; make ; make install 
+
+Please untar the ext.tgz in this top level TAU directory:
+tar zxf ext.tgz
+
+If you are using TAU on a Mac OS X system, please download and install
+http://tau.uoregon.edu/java.dmg  so the ParaProf 3D visualizer will work.
+
+After uncompressing and untarring tau, the user needs to configure, compile and
+install the package. This is done by invoking:
+
+% ./configure 
+
+We recommend using BFD, libunwind, dwarf, and ompt download options that extract 
+the files from the external third party library directory. 
+
+% ./configure -bfd=download -dwarf=download -unwind=download -iowrapper -pdt=<dir> 
+% make install
+
+OpenMP Support in TAU
+---------------------
+TAU supports OMPT v5.0 with Clang 8.x compilers and Intel 19.0.4+ and TR7 with Intel 19.0.1 compilers.
+To use this support, simply configure TAU with -ompt. 
+NOTE: If these compilers are not used, -ompt automatically downloads the appropriate TR6 or TR4 downloads depending on the compiler. GNU does not currently support OMPT but it will in the future. 
+
+To use MPI compilers and OpenMP, please specify the appropriate compilers as:
+% ./configure -c++=mpicxx -cc=mpicc -fortran=mpif90 -mpi -ompt -iowrapper -bfd=download -dwarf=download -otf=download -unwind=download -pdt=<path_to_pdt_dir>
+% make install 
+
+To use this new OMPT capability using tau_exec to preload the libTAU.so library from <taudir>/x86_64/lib/shared-icpc-ompt-v5-... directory, please use:
+
+% export TAU_OMPT_SUPPORT_LEVEL=full
+% export OMP_NUM_THREADS=4
+% mpirun -np 4 tau_exec -T mpi,openmp,ompt,v5,pdt -ompt ./a.out
+% pprof -a | more
+% paraprof
+
+By default the OMPT support level is basic (which generates events on thread 0, but not on threads 1.. N-1. With full
+it generates events on all 0..N-1 threads. 
+
+To use other packages such as PAPI [http://icl.cs.utk.edu/papi] to access 
+hardware performance counters or Score-P [http://www.score-p.org] to generate
+OTF2 traces that may be viewed in Vampir [http://www.vampir.eu], please use:
+
+% ./configure -papi=<dir> -scorep=<dir> ...
+options. Each configuration of TAU builds a unique stub makefile (configuration options file) that stores key configuration parameters (paths to MPI, compilers used, etc). It typically looks like this:
+/usr/tau-<version>/<arch>/lib/Makefile.tau-<tags>
+We typically use TAU by choosing a specific configuration by setting the 
+TAU_MAKEFILE environment variable to point to the desired configuration. 
+
+e.g.,
+% export TAU_MAKEFILE=/path/to/tau-2.x/craycnl/lib/Makefile.tau-cray-papi-mpi-pdt
+and then after putting TAU in the path:
+% export PATH=/path/to/tau-2.x/craycnl/bin:$PATH
+we substitute the compiler used with the TAU compiler scripts:
+
+% make CC=tau_cc.sh CXX=tau_cxx.sh F90=tau_f90.sh 
+and run the job:
+% aprun -n 256 ./a.out
+
+and analyze the performance data:
+% paraprof 
+(or pprof for text instead of the GUI).
+There are some key runtime environment variables that you may set:
+% export TAU_METRICS=TIME,PAPI_FP_INS,PAPI_L1_DCM,ENERGY
+
+(ENERGY is only available on newer Cray systems at this time in user space). 
+% export TAU_PROFILE_FORMAT="merged"
+generates a single tauprofile.xml file instead of profile.<rank>.0.<thread> files.
+% paraprof tauprofile.xml & 
+allows you to browse the data. For large runs (> 100,000 cores, we recommend using this option). 
+
+Other variables that can be useful are:
+% export TAU_SAMPLING=1
+which generates a profile using event-based sampling.
+For CUDA profiling on GPUs, please use -cuda=<dir> to configure TAU and use tau_exec to launch the job:
+
+% ./configure -cuda=<dir>  ... 
+
+% mpirun -np 256 tau_exec -T papi,cupti,pdt -cupti ./a.out
+
+No special -cuda options are needed when configuring TAU for OpenACC profiling 
+with PGI compilers:
+% module load PrgEnv-pgi
+% ./configure -arch=craycnl -mpi -bfd=download -pdt=<dir> -papi=<dir> ; 
+% make install
+% aprun -n 256 tau_exec -T pgi,pdt,mpi -openacc ./a.out
+
+To periodically sample the memory footprint of your application, please set:
+% export TAU_TRACK_MEMORY_FOOTPRINT=1
+
+Please see http://tau.uoregon.edu/tau.pptx for sample TAU slides. Please drop us
+an e-mail at tau-bugs@cs.uoregon.edu if you get stuck or have a question. 
+=================================== END OF QUICKSTART GUIDE ===================
+
+Configuring TAU
+----------------
+
+1.  Configure the package for your system. We strongly urge you to see the section
+"1) INSTALLING TAU" below for examples (Linux clusters, BGQ, Cray XC40)
+
+TAU is configured by running the configure script with appropriate options that
+select the profiling and tracing components that are used to build the TAU 
+library.  The `configure' shell script attempts to guess correct values for 
+various system-dependent variables used during compilation, and creates the 
+Makefile(s) (one in each subdirectory of the source directory).
+
+NOTE: It is highly recommended that you select the *minimal* set of options 
+that satisfies the instrumentation and measurement parameters that you need. 
+Multiple configurations can be created by using configure several times 
+using a different set of options each time. Commonly used configurations are 
+typically installed using the 'installtau' tool described below. 
+
+NOTE: tau_setup is a Java based GUI tool for installing TAU on your system.
+
+% ./configure -help 
+
+TAU Configuration Utility 
+***********************************************************************
+Usage: configure [OPTIONS]
+  where [OPTIONS] are:
+
+Compiler Options:
+-c++=<compiler>  ............................ specify the C++ compiler.
+    options [mpicxx|mpiicpc|mpc_icpc|icpc|g++|*xlC*|cxx|pgCC|pgcpp|
+		FCC|guidec++|aCC|c++|ecpc|
+               clang++|bgclang++|g++4|icpc|scgcc|scpathCC|pathCC|orCC].
+-cc=<compiler> ................................ specify the C compiler.
+     options [mpicc|mpiicc|mpc_icc|icc|cc|gcc|clang|bgclang|gcc4|scgcc|
+	pgcc|guidec|*xlc*|ecc|pathcc|orcc].
+-fortran=<compiler> ..................... specify the Fortran compiler.
+   options    [mpif90|mpiifort|gfortran|ibm|pgi|cray|intel|nagware|pathscale
+	sgi|ibm64|hp|cray|pgi|absoft|fujitsu|sun|compaq|
+       g95|open64|kai|nec|hitachi|intel|absoft|lahey}
+-upc=<compiler> ............................. specify the UPC compiler.
+     options [upc|gcc(GNU UPC) |upcc (Berkeley UPC) | cc (Cray CCE UPC)
+-pdt=<dir> ........ Specify location of PDT (Program Database Toolkit).
+-pdt_c++=<compiler>  ............ specify a different PDT C++ compiler.
+    options [/full/path/to/compiler|g++|icpc|CC||g++|*xlC*|cxx|pgCC|pgcpp|FCC
+	|guidec++|aCC|c++|ecpc|g++4|icpc|scgcc|pathCC|orCC].
+-useropt='<param>' .......... arguments to compilers (defaults to -O2).
+
+Installation Options:
+-prefix=<dir> ................ Specify a target installation directory.
+-exec-prefix=<arch> .......... Specify a target architecture directory.
+-arch=<architecture> ................... Specify a target architecture.
+       options      [mic_linux|craycnl|bgq|bgp|ibm64linux|sunx86_64
+                         crayxmt|solaris2-64|mips32|sgin32|sgi64|sgio32
+                                                 arm_linux|arm_android]
+-bfd=<dir | download> ....... Specify a binutils directory or download.
+    Note: 'download' will download and build the library automatically.
+-unwind=<dir | download> ... Specify a libunwind directory or download.
+    Note: 'download' will download and build the library automatically.
+
+MPI Options:
+-mpi .......................... Specify use of TAU MPI wrapper library.
+-mpiinc=<dir> ............. Specify location of MPI include dir and use
+                           the TAU MPI Profiling and Tracing Interface.
+-mpilib=<dir> ............. Specify location of MPI library dir and use
+                           the TAU MPI Profiling and Tracing Interface.
+-mpilibrary=<library> ................ Specify a different MPI library.
+            e.g., -mpilibrary=-lmpi#-lutil#-ldl  (# is used for a space)                                  
+OpenMP Options:
+-ompt .................. Use OpenMP Tools API instead of opari
+(NOTE: -ompt is currently supported for GNU, Intel, MPC, and OpenUH compilers.)
+-openmp ........................................... Use OpenMP threads.
+-opari .................................................... Use Opari2.
+-opari1 .................................................... Use Opari.
+-opari_region ........ Only report performance data for OpenMP regions.
+-opari_construct .. Only report performance data for OpenMP constructs.
+-oparicomp=<compiler>...Specify which compiler sutie to compile Opari2.
+     options [gcc|ibm|intel|pathscale|pgi|studio].
+
+SHMEM Options:
+-shmem ...................... Specify use of TAU SHMEM wrapper library.
+-shmeminc=<dir> ......... Specify location of SHMEM include dir and use
+                         the TAU SHMEM Profiling and Tracing Interface.
+-shmemlib=<dir> ......... Specify location of SHMEM library dir and use
+                           the TAU MPI Profiling and Tracing Interface.
+-shmemlibrary=<library> ............ Specify a different SHMEM library.
+            e.g., -shmemlibrary=-lsmac                                 
+
+-gpi=<dir> .................. Specify use of TAU's GPI wrapper library.
+GPGPU Options:
+-cuda=<dir> ................ Specify location of the top level CUDA SDK
+directory with include subdirectory. Enables OpenCL and CUDA profiling.
+
+Other Options:
+-iowrapper .................................... Build POSIX IO Wrapper.
+-dmapp ...................................... Build Cray DMAPP Wrapper.
+-pthread .................................. Use pthread thread package.
+-papi=<dir> ............... Specify location of PAPI (Performance API).
+-vtf=<dir> ......... Specify location of VTF3 Trace Generation Package.
+-otf=<dir> ....... Specify location of Open Trace Format (OTF) Package.
+-scorep=<dir>  .................... Specify location of SCOREP package.
+-python .. Automatically choose python options based on Python in path.
+-pythoninc=<dir> ........ Specify location of Python include directory.
+-pythonlib=<dir> ............ Specify location of Python lib directory.
+-tag=<unique name> ........ Specify a tag to identify the installation.
+-PROFILECOMMUNICATORS ... Generate profiles with MPI communicator info.
+-PROFILEPHASE .......................... Generate phase based profiles.
+-BGQTIMERS .... Use fast low-overhead timers on IBM BlueGene/Q systems.
+-fullhelp .............................. display the full help message.
+
+More advanced options are available, use -fullhelp to see them.
+***********************************************************************
+
+The following  command-line options are available to configure:
+
+-prefix=<directory>
+   
+   Specifies the destination directory where the header, library and binary 
+   files are copied. By default, these are copied to subdirectories <arch>/bin 
+   and <arch>/lib in the TAU root directory. 
+   
+-arch=<architecture>
+   
+   Specifies the architecture. If the user does not specify this option, 
+   configure determines the architecture. The files are installed in the 
+   <architecture>/bin and <architecture>/lib directories. 
+
+IMPORTANT NOTE: For Cray systems, please specify -arch=craycnl.
+   For IBM architectures, we use -arch=ibm64linux and -arch=bgq for IBM 
+	Power 8/9 Linux and IBM BG/Q respectively. 
+   To build for Intel MIC KNC systems, please use -arch=mic_linux unless 
+	the MICs in the Cray XC system, in which case please use -arch=craycnl. 
+
+-mpilibrary=<library> ................ Specify a different MPI library.
+            e.g., -mpilibrary=-lmpi#-lutil#-ldl  (# is used for a space)                                  
+-cuda=<dir>
+		Specifies the locate of the nVidia's CUDA installation. Assumes the header are 
+		in <dir>/include and libraries are in /usr/lib or another location accessible 
+		by the TAU linker.
+
+-opencl=<dir>
+		Specifies the locate of an OPENCL installation. Assumes the header are in
+		<dir>/CL/include and libraries are in /usr/lib or another location accessible 
+		by the TAU linker.
+
+-pthread
+   
+   Specifies pthread as the thread package to be used. In the default mode, no 
+   thread package is used. 
+   
+-openmp
+   Specifies OpenMP as the threads package to be used. 
+   [ Ref: http://www.openmp.org ]
+
+-opari
+   Uses Opari
+   
+-opari_region 
+   Report performance data for only OpenMP regions and not constructs. 
+   By default, both regions and constructs are profiled with Opari.
+
+-opari_construct 
+   Report performance data for only OpenMP constructs and not regions.
+   By default, both regions and constructs are profiled with Opari.
+
+-pdt=<directory>
+   
+   Specifies the location of the installed PDT (Program Database Toolkit) root 
+   directory. PDT is used to build tau_instrumentor, a C++, C and F90 
+   instrumentation program that automatically inserts TAU annotations in the 
+   source code. If PDT is configured with a subdirectory option (-compdir=<opt>)
+   then TAU can be configured with the same option by specifying 
+   -pdt=<dir> -pdtcompdir=<opt>. 
+
+   [ Ref: http://www.cs.uoregon.edu/research/pdtoolkit ]
+   
+-papi=<directory>
+
+   Specifies the location of the installed PAPI (Performance API) root 
+   directory. PAPI specifies a standard application programming interface (API)    
+   for accessing hardware performance counters available on most modern 
+   microprocessors similar. For e.g., to measure floating point instructions 
+   and level 1 data cache misses and time, please set the environment variable TAU_METRICS:
+   % export TAU_METRICS=PAPI_FP_INS,PAPI_L1_DCM,TIME
+   % papi_avail  (shows the list of preset metrics)
+   % papi_event_chooser PRESET PAPI_FP_INS PAPI_L1_DCM 
+     shows you what PAPI preset events are compatible and can be examined 
+     in the same experiment with PAPI_FP_INS and PAPI_L1_DCM events. To use
+     native events, please use PAPI_NATIVE_<event_name> in the TAU_METRICS. 
+     Please refer to the TAU User's Guide or PAPI Documentation for other 
+     event names.
+   [ Ref : http://icl.cs.utk.edu/projects/papi/api/ ]
+
+-dyninst=<directory>
+   Specifies the location of the DynInst (dynamic instrumentation) package. 
+   See README.DYNINST for instructions on using TAU with DynInstAPI for 
+   binary runtime instrumentation (instead of manual instrumentation) or
+   prior to execution by rewriting it. 
+   [ Ref: http://www.dyninst.org]
+
+-otf=<directory>
+   Specifies the location of the OTF trace generation package. TAU's binary 
+   traces can be converted to the Open Trace format (OTF) using tau2otf, a 
+   tool that links with the OTF library. OTF traces are hierarchical (multi-stream), 
+   compact, support online compression, and can be read concurrently by a parallel trace
+   analysis tool such as VNG [ Ref: http://www.vampir.eu, http://www.paratools.com/otf].
+
+-otfinc=<dir>
+   Specifies the location of stand-alone OTF header files. This is intended
+   for use with features orthogonal to the use of the -otf=<directory> option.
+   -otf has the side-effect of making tracing default in the TAU build. This
+   may not be the expected behavior for features like Event-based sampling,
+   which only needs to know the header and library locations of OTF in order
+   to provide conversion facilities for EBS to OTF traces.
+
+-otflib=<dir>
+   Specifies the location of stand-alone OTF library files. Please refer to
+   -otfinc for further notes on intended use.
+
+-ebs2otf
+   Enables the building of utilities that support the conversion of EBS 
+   traces to OTF format. This requires an appropriate version of OTF 
+   (currently 1.8) to be available either through -otf or through -otfinc
+   and -otflib options. Please note that this feature does not require the
+   conversion utilities to be built on the same machine the EBS traces are
+   generated. System administrators making pre-built versions of TAU for
+   their users do not have to enable this feature if the supporting 
+   software infrastructure is not available. Please read README.sampling
+   for more details.
+
+-slog2=<directory>
+   Specifies the location of the SLOG2 SDK trace generation package. TAU's
+   binary traces can be converted to the SLOG2 format using tau2slog2, a tool
+   that uses the SLOG2 SDK. The SLOG2 format is read by the Jumpshot4 trace
+   visualization software, a freely available trace visualizer from Argonne National
+   Laboratories.
+   [ Ref: http://www-unix.mcs.anl.gov/perfvis/download/index.htm#slog2sdk ]
+
+-pythoninc=<dir>
+   Specifies the location of the Python include directory. This is the directory
+   where Python.h header file is located. This option enables python bindings to 
+   be generated. The user should set the environment variable PYTHONPATH to 
+   <TAUROOT>/<ARCH>/lib/bindings-<options> to use a specific version of the TAU 
+   Python bindings. By importing package pytau, a user can manually instrument the source
+   code and use the TAU API. On the other hand, by importing tau and 
+   using tau.run('<func>'), TAU can automatically generate instrumentation. See
+   examples/python directory for further information. Please see tau_python.
+
+-pythonlib=<dir>
+   
+   Specifies the location of the Python lib directory. This is the directory
+   where *.py and *.pyc files (and config directory) are located. This option is 
+   mandatory for IBM when Python bindings are used. For other systems, this option 
+   may not be specified (but -pythoninc=<dir> needs to be specified). 
+
+-PROFILECOMMUNICATORS 
+  
+   This option generates MPI information partitioned by communicators. TAU 
+   lists upto 8 ranks in each communicator in the listing. 
+
+-PROFILEPARAM
+ 
+   This option generates parameter mapped profiles. When used with the MPI 
+   wrappper library (-mpi, -mpiinc=<dir>, -mpilib=<dir>) options, TAU generates
+   profiles where the time spent in MPI routines is partitioned based on 
+   the size of the message. It can also be used in an application to partition
+   the time spent in a given routine based on a runtime parameter, such as an
+   argument to the routine. See examples/param for further information. 
+
+-PROFILEPHASE
+   
+   This option generates phase based profiles. It requires special instrumentation
+   to mark phases in an application (I/O, computation, etc.). Phases can be 
+   static or dynamic (different phases for each loop iteration, for instance).
+   See examples/phase/README for further information. 
+
+-useropt=<options-list>
+   
+   Specifies additional user options such as -g or -I.  For multiple options, 
+   the options list should be enclosed in a single quote.
+
+-extrashlibopts=<options-list>
+   
+   Specifies additional libraries and options that may be passed to the linker 
+   while building TAU's shared object. e.g., for AIX -lmpi_r may be passed while
+   building libTAU.so with Python and MPI. 
+   
+-help
+   
+   Lists all the available configure options and quits. 
+
+-----------------
+1) INSTALLING TAU
+-----------------
+
+i) To configure TAU for Linux clusters, you may use the MPI compiler wrapper as
+the name of the compiler. If this doesn't work, please determine if your MPI 
+depends upon some
+other package such MPICH over GM. If so, please locate the path to the other library. To 
+instrument Fortran/C/C++ code using say, Intel compilers and MPI you may install
+PDT [Ref: http://www.cs.uoregon.edu/research/pdt] for automatic source instrumentation, and 
+then install TAU. 
+
+  % configure -c++=mpiicpc -cc=mpiicc -fortran=mpiifort -bfd=download -mpi -pdt=<dir> ; make install
+  If this doesn't work and say if your MPICH resides in /usr/local/mpich-1.2.7 and it depends upon /opt/gm, you 
+   may consider configuring TAU with:
+   % configure -pdt=<dir> -c++=icpc -cc=icc -fortran=intel 
+       -mpiinc=/usr/local/mpich-1.2.7/include -mpilib=/usr/local/mpich-1.2.7/lib
+       -mpilibrary=-lmpich#-L/opt/gm/lib#-lgm#-lpthread#-ldl
+
+	You may use single quotes with spaces or # for spaces in -mpilibrary.
+   % make clean install
+
+   For Infiniband, for instance, you may want to use -mpilibrary as below:
+   % configure -pdt=<dir> -c++=pathCC -cc=pathcc -fortran=pathscale  
+       -mpiinc=/usr/common/usg/mvapich/pathscale/mvapich-0.9.5-mlx1.0.3/include 
+       -mpilib=/usr/common/usg/mvapich/pathscale/mvapich-0.9.5-mlx1.0.3/lib 
+       -mpilibrary='-lmpich -L/usr/local/ibgd/driver/infinihost/lib64 -lvapi'
+
+   To identify the dependencies of mpich, see mpif90 -v <file.f90> and identify the 
+   libraries utilized to link in the application. 
+
+iv) To configure TAU for Cray XK/XC systems or IBM BGQ
+
+   First configure PDT using 
+   % configure -XLC ; make clean install on IBM BGQ. 
+   On Cray you will need to configure PDT using:
+   % configure -GNU; make clean install
+
+   Then, configure TAU using:
+   % configure -arch=bgq -mpi -pdt=<dir> -pdt_c++=xlC 
+	configures TAU with MPI and PDT on BG/Q. You may configure TAU using:
+     Use -arch=craycnl -pdt_c++ on Cray CNL systems and 
+	This creates directories
+	<taudir>/[bgq,craycnl]/[bin,lib] 
+        The directory <taudir>/[bgq,craycnl]/bin should be added to your PATH. 
+
+***********************************************************************
+   To install *multiple* (typical) configurations of TAU at a site, you may use the 
+   script 'installtau' or 'tau_setup'. Installtau takes options similar to those described above. It 
+   invokes ./configure <opts>; make clean install;  to create multiple libraries that 
+   may be requested by the users at a site. 
+   % installtau -help
+
+
+TAU Configuration Utility 
+***********************************************************************
+Usage: installtau [OPTIONS]
+  where [OPTIONS] are:
+-arch=<arch>  
+-fortran=<compiler>  
+-cc=<compiler>   
+-c++=<compiler>   
+-useropt=<options>  
+-pdt=<pdtdir>  
+-pdtcompdir=<compdir>  
+-pdt_c++=<C++ Compiler>  
+-papi=<papidir>  
+-vtf=<vtfdir>  
+-slog2=<dir> (for external slog2 dir)
+-slog2 (for using slog2 bundled with TAU)
+-dyninst=<dyninstdir>  
+-mpiinc=<mpiincdir>  
+-mpilib=<mpilibdir>  
+-mpilibrary=<mpilibrary>  
+-perfinc=<dir> 
+-perflib=<dir> 
+-perflibrary=<library> 
+-mpi
+-tag=<unique name> 
+-nocomm
+-opari=<oparidir>  
+-epilog=<epilogdir>  
+-prefix=<dir>  
+-exec-prefix=<dir>  
+***********************************************************************
+
+2. Compilation.
+
+   Type `make clean install' to compile the package. 
+
+   Make installs the library and its stub makefile  in <prefix>/<arch>/lib 
+   subdirectory and installs utilities such as pprof and paraprof in 
+   <prefix>/<arch>/bin subdirectory.
+
+   
+   Add to your .cshrc file the $(TAU_ARCH)/bin subdirectory.
+   e.g.,
+   # in .cshrc file
+   set path=($path /usr/local/packages/tau/x86_64/bin)
+
+   # in .bashrc file
+   export PATH=/usr/local/packages/tau/x86_64/bin:$PATH
+
+   See the examples included with this distribution in the examples/ directory.
+   The README file in examples directory describes the examples. 
+   
+   To verify that an installation is correct, please use the tau_validate tool:
+
+   % ./tau_validate -help
+    Usage: tau_validate [-v] [--html] [--tag <tag>] [--build] [--run] <target>
+    
+    Options:
+    
+    -v           Verbose output
+    --html       Output results in HTML
+    --tag <tag>  Validate only the subset of TAU stub makefiles matching <tag>
+    --build      Only build
+    --run        Only run
+    <target>     Specify an arch directory (e.g. rs6000), or the lib
+                 directory (rs6000/lib), or a specific makefile.
+                 Relative or absolute paths are ok.
+    
+    Notes:
+    tau_validate will attempt to validate a TAU installation by performing
+    various tests on each TAU stub Makefile.  Some degree of logic exists
+    to determine if a given test applies to a given makefile, but it's not
+    perfect.
+    
+    Example:
+    
+    bash : ./tau_validate --html x86_64 &> results.html
+    tcsh : ./tau_validate --html --tag pgi --build craycnl >& results.html
+
+   To upgrade from an older version of TAU, please use the tau_upgrade tool. 
+   ./upgradetau  <path/to/old/tau> [extra args]
+   e.g.,
+   ./upgradetau /usr/local/tau-2.16 -pdt=/usr/local/pdtoolkit-5.6
+   Upgrades the current configuration using older tau-2.16 configurations, but
+   uses the newer PDT v5.6. 
+ 
+
+3. Instrumentation.
+
+   TAU provides compilation scripts tau_f90.sh, tau_cc.sh and tau_cxx.sh. You may
+   use these scripts to automatically instrument your application if you have 
+   specified the use of -pdt=<dir> while configuring TAU. PDT provides source
+   code analysis for TAU to automatically insert TAU calls in a copy of the application
+   source code. These scripts also link in the TAU libraries. To use this approach,
+   simply set the TAU_MAKEFILE environment variable to point to the TAU stub
+   makefile that is created in the <arch>/lib directory corresponding to the measurement
+   option chosen. For instance, On Cray, when you configure TAU with:
+   % configure -pdt=<dir> -mpi -arch=craycnl -bfd=download; make install
+   % setenv TAU_MAKEFILE <taudir>/craycnl/lib/Makefile.tau-mpi-pdt
+   % tau_f90.sh -c app.f90 ; tau_f90.sh app.o -o app
+   % tau_cxx.sh foo.cpp -o foo
+   These scripts act similar to the MPI scripts (ftn, mpif90, mpxlf90_r, etc.) 
+   that internally invoke the compiler that TAU was configured with. 
+
+   Instrumentation can be controlled by passing options to the TAU compiler. See:
+   tau_compiler.sh -help for a complete listing of options and see section 8 below. 
+
+   NEW: If you wish to use compiler-based instrumentation, simply insert
+   the -optCompInst option in the TAU_OPTIONS environment variable:
+   % setenv TAU_MAKEFILE <taudir>/<arch>/lib/Makefile.tau-mpi-pdt
+   % setenv TAU_OPTIONS '-optCompInst -optVerbose' 
+   % tau_f90.sh -c app.f90; tau_cc.sh -c foo.c; tau_f90.sh app.o -o app
+   This option will use the compiler to insert calls to the TAU measurement
+   API. TAU currently support GNU, IBM, Pathscale, Intel and PGI compilers.
+
+   Under Windows, we also support instrumentation using Intel PIN. Use:
+   c:\> tau_pin \Path\To\Application.exe
+   to spawn the program under PIN. See PIN documentation in TAU for further
+   information.
+
+   % cd examples/mm; make
+   % mpirun -np 4 ./matmult
+   % pprof
+   % paraprof
+
+   To illustrate the use of TAU Fortran 90 instrumentation API, we have 
+   included the NAS Parallel Benchmarks 2.3 LU and SP suites in the 
+   examples/NPB2.3 directory [Ref http://www.nas.nasa.gov/NAS/NPB/ ].
+   See the config/make.def makefile that shows how TAU can be used with 
+   MPI  (with the TAU MPI Wrapper library) and Fortran 90. To use this, TAU
+   must be configured using the -mpiinc=<dir>  and -mpilib=<dir> options. The
+   default Fortran 90 compiler used is f90. This may be changed by the user in
+   the makefile. LU is completely instrumented and uses the instrumented MPI
+   library whereas SP has minimal instrumentation in the top level routine
+   and relies on the instrumented MPI wrapper library. 
+ 
+4. Paraprof.
+
+   Paraprof is the GUI for TAU performance analysis. It requires Java 1.5+. An
+
+   IMPORTANT NOTE:
+   ***************
+   If you see an error that looks like:
+   May 18, 2005 2:27:19 PM java.util.prefs.FileSystemPreferences 
+   checkLockFile0ErrorCode
+   WARNING: Could not lock User prefs. Unix error code 52.
+
+   please make sure  that you've used ssh -Y to login to your remote node. 
+   If you see windows that don't look right (in size), this may be the cause
+   of the problem as well. You need a trusted ssh connection for Java's Swing. 
+
+5. Performance Database: TAUdb and PerfExplorer
+
+   TAU's Database (TAUdb) database is designed to store and provide 
+   access to TAU profile data.  A number of utility programs have been written 
+   in Java to load the data into TAUdb (taudb_loadtrial) and to query the data.    With TAUdb users can perform performance analyses such as regression 
+   analysis, scalability analysis across multiple trials, and so on.  
+   Comparative analyses are available through the TAUdb toolkit.  
+   Work is being done to provide the user with standard analysis tools, and 
+   an API has been developed to access the data with standard Java classes. 
+   For further information, please refer to tools/src/perfdmf/README
+   file for installation and usage instructions. 
+
+	PerfExplorer is a framework for parallel performance data mining and
+	knowledge discovery. The framework architecture enables the development
+	and integration of data mining operations that will be applied to
+	large-scale parallel performance profiles. For further information, please 
+	refer to tools/src/perfexplorer/doc/README file for installation and usage 
+	instructions. 
+
+6. Eclipse Integration: TAU JDT & CDT Plugins for Eclipse
+   
+   The TAU plugins for Eclipse allow TAU instrumentation and execution of Java, 
+   C/C++ and Fortran programs within the Eclipse IDE.  To install the plugin
+   for java copy the plugins folder in tools/src/taujava to your Eclipse main
+   directory.  To install the plugin for C/C++ and Fortran the Eclipse CDT
+   [http://www.eclipse.org/cdt/] or FDT [http://www.eclipse.org/ptp/] plugins
+   should be installed as well.  Copy the plugins folder in tools/src/taucdt
+   to your Eclipse main directory.  The respective plugins folders contain
+   README files with more information.
+
+7. TAU Commander
+
+TAU Commander from ParaTools, Inc. is a production-grade performance engineering solution that makes The TAU Performance System users more productive. It presents a simple, intuitive, and systemized interface that guides users through performance engineering workflows and offers constructive feedback in case of error. TAU Commander also enhances the performance engineer's ability to mine actionable information from the application performance data by connecting to a suite of cloud-based data analysis, storage, visualization, and reporting services.
+
+Download from https://github.com/ParaToolsInc/taucmdr
+
+Please visit: http://www.taucommander.com for further information. 
+
+If you have any questions, please contact us at tau-bugs@cs.uoregon.edu. 
+
+

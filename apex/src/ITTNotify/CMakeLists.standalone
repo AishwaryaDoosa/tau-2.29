@@ -1,0 +1,37 @@
+# Make sure the compiler can find include files from our Apex library. 
+include_directories (${APEX_SOURCE_DIR}/src/apex)
+
+# gcc on apple needs the apex library to link the dylib
+# if(APPLE)
+  link_directories (${APEX_BINARY_DIR}/src/apex)
+# endif()
+
+# Create a library called "ittnotify" which includes the source file
+# "ittnotify.cpp". 
+# The extension is already found. Any number of sources could be listed here. 
+if (BUILD_STATIC_EXECUTABLES)
+    add_library (ittnotify STATIC ittnotify.cpp)
+else()
+    add_library (ittnotify SHARED ittnotify.cpp)
+endif()
+set_target_properties (ittnotify PROPERTIES OUTPUT_NAME ittnotify)
+
+target_link_libraries (ittnotify apex)
+add_dependencies (ittnotify apex)
+
+# add the binary tree to the search path for include files
+# so that we will find ittnotify.h
+include_directories ("${PROJECT_BINARY_DIR}/src/apex")
+
+INSTALL(FILES ittnotify.h DESTINATION include)
+INSTALL(FILES legacy/ittnotify.h DESTINATION include/legacy)
+
+#INSTALL(TARGETS ittnotifyShared ittnotifyStatic
+INSTALL(TARGETS ittnotify ittnotify
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib64
+  ARCHIVE DESTINATION lib64
+)
+

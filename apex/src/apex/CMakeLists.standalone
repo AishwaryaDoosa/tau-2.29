@@ -1,0 +1,93 @@
+# Create a library called "Apex" which includes the source file "apex.cxx". 
+# The extension is already found. Any number of sources could be listed here. 
+
+include_directories(${PROJECT_BINARY_DIR}/src/apex ${APEX_SOURCE_DIR}/src/contrib)
+
+SET(tau_SOURCE tau_listener.cpp)
+
+if (BFD_FOUND)
+SET(bfd_SOURCE apex_bfd.cpp address_resolution.cpp)
+endif(BFD_FOUND)
+
+if (APEX_HAVE_PROC)
+SET(PROC_SOURCE proc_read.cpp)
+endif(APEX_HAVE_PROC)
+
+if (OMPT_FOUND)
+SET(OMPT_SOURCE apex_ompt.cpp)
+endif(OMPT_FOUND)
+
+if (LM_SENSORS_FOUND)
+SET(SENSOR_SOURCE sensor_data.cpp)
+endif(LM_SENSORS_FOUND)
+
+if (OTF2_FOUND)
+SET(OTF2_SOURCE otf2_listener.cpp)
+endif(OTF2_FOUND)
+
+SET(all_SOURCE task_identifier.cpp apex.cpp thread_instance.cpp event_listener.cpp concurrency_handler.cpp policy_handler.cpp handler.cpp utils.cpp ${tau_SOURCE} profiler_listener.cpp ${bfd_SOURCE} apex_options.cpp apex_policies.cpp ${PROC_SOURCE} ${OMPT_SOURCE} ${SENSOR_SOURCE} ${OTF2_SOURCE})
+
+add_library (apex ${all_SOURCE})
+add_library (taudummy tau_dummy.cpp)
+add_dependencies (apex taudummy)
+
+if(ACTIVEHARMONY_FOUND)
+    add_dependencies (apex project_activeharmony)
+endif(ACTIVEHARMONY_FOUND)
+
+if(OMPT_FOUND)
+    add_dependencies (apex project_ompt)
+endif(OMPT_FOUND)
+
+if(BFD_FOUND)
+    add_dependencies (apex project_binutils)
+endif(BFD_FOUND)
+
+if(OTF2_FOUND)
+    add_dependencies (apex project_otf2)
+endif(OTF2_FOUND)
+
+if(APEX_INTEL_MIC)
+    add_dependencies (apex project_boost)
+endif(APEX_INTEL_MIC)
+
+if (MPI_CXX_FOUND)
+  include_directories (${MPI_CXX_INCLUDE_PATH})
+endif(MPI_CXX_FOUND)
+
+# If we are building libapex.so, we want to include all the other libraries,
+# so that we can LD_PRELOAD this library with all requirements met.
+if (NOT BUILD_STATIC_EXECUTABLES)
+    if(APPLE)
+        target_link_libraries(apex ${LIBS})
+        set_target_properties(apex PROPERTIES LINK_FLAGS "-weak_library ${CMAKE_CURRENT_BINARY_DIR}/libtaudummy.dylib -flat_namespace")
+    else(APPLE)
+        target_link_libraries(apex ${LIBS} taudummy)
+    endif(APPLE)
+endif()
+
+# add the binary tree to the search path for include files
+# so that we will find ApexConfig.h
+if(HAVE_RCR)
+include_directories("${PROJECT_BINARY_DIR}/src/apex" ${RCR_INCLUDE_PATH})
+else()
+include_directories("${PROJECT_BINARY_DIR}/src/apex")
+endif()
+
+INSTALL(FILES apex.h 
+    apex_api.hpp
+    apex_types.h
+    apex_policies.h
+    apex_policies.hpp
+    handler.hpp
+    profile.hpp
+    apex_export.h
+    utils.hpp
+    apex_options.hpp
+    profiler.hpp
+    task_wrapper.hpp
+    task_identifier.hpp
+    DESTINATION include)
+
+INSTALL(TARGETS apex RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+

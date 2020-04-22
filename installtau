@@ -1,0 +1,460 @@
+#!/bin/sh 
+
+#Variables
+pdt=no
+pdtcomp=no
+dyninst=no
+arch=no
+archdir=none
+cc=no
+cxx=no
+fortran=no
+mpiopts=
+mpi=no
+perf=no
+perfincdir=
+perflibdir=
+perflibrary=
+mpiinc=no
+mpilib=no
+tag=no
+tagopt=
+pdtcxxopt=
+pdtcxxarg=
+vtf=no
+otf=no
+vampirtrace=no
+vptopt=
+vtfopt=
+useropt=no
+papi=no
+opari=no
+epilog=no
+epilogopt=
+mpilibrary=no
+tauprefix=unknown
+tauexecprefix=unknown
+extraopts=
+parallel=
+
+###############################################################
+# This method will escape spaces so that you can use ./configure `cat .last_config` when you've used them
+for arg in "$@"; do
+    # Thanks to Bernd Mohr for the following that handles quotes and spaces
+    # -e 's/^x//'          removes the x at the start
+    # -e 's/"/\\\"/g'      replaces " with \"
+    # -e s,\',%@%\',g      replaces ' with %@%'
+    # -e 's/%@%/\\\/g'     replaces %@% \
+    # -e 's/ /\\\ /g'      replaces space with \space
+    modarg=`echo "x$arg" | sed -e 's/^x//' -e 's/"/\\\"/g' -e s,\',%@%\',g -e 's/%@%/\\\/g' -e 's/ /\\\ /g'`
+    modargs="$modargs $modarg"
+done
+echo "$modargs" >> .installflags
+
+###############################################################
+# PARSE COMMAND LINE SWITCHES
+###############################################################
+for arg in "$@";
+do
+  case $arg in
+
+  -arch=*)
+    arch=yes
+    archdir=`echo $arg | sed -e 's/-arch=//'`
+    shift
+    ;;
+
+  -fortran=*)
+    fortran=yes
+    fortranspec=`echo $arg | sed -e 's/-fortran=//'`
+    shift
+    ;;
+
+  -cc=*)
+    cc=yes
+    ccspec=`echo $arg | sed -e 's/-cc=//'`
+    shift
+    ;;
+
+  -c++=*)
+    cxx=yes
+    cxxspec=`echo $arg | sed -e 's/-c++=//'`
+    shift
+    ;;
+
+  -useropt=*)
+    useropt=yes
+    useroptspec=`echo $arg | sed -e 's/-useropt=//' -e 's/ /#/g'`
+    shift
+    ;;
+
+  -papi=*)
+    papi=yes
+    papidir=`echo $arg | sed -e 's/-papi=//'`
+    papiopt="-papi=$papidir"
+    shift
+    ;;
+
+  -perfinc=*)
+      perf=yes
+      perfincdir=`echo $arg | sed -e 's/-perfinc=//'`
+      if [ ! -d $perfincdir ]
+      then
+        echo "Error: Cannot access PERF include directory $perfincdir"
+        exit 1
+      fi
+      perfopts="$perfopts $arg"
+    shift
+    ;;
+
+  -perflib=*)
+      perf=yes
+      perflibdir=`echo $arg | sed -e 's/-perflib=//'`
+      if [ ! -d $perflibdir ]
+      then
+        echo "Error: Cannot access PERF lib directory $perflibdir"
+        exit 1
+      fi
+      perfopts="$perfopts $arg"
+    shift
+    ;;
+
+  -perflibrary=*)
+      perf=yes
+      perflibrary=`echo $arg | sed -e 's/-perflibrary=//' -e 's/ /#/g'`
+      perfopts="$perfopts -perflibrary=$perflibrary"
+    shift
+    ;;
+
+
+  -dyninst=*)
+    dyninst=yes
+    dyninstdir=`echo $arg | sed -e 's/-dyninst=//'`
+    shift
+    ;;
+
+  -opari*)
+    opari=yes
+    openmp=yes
+    shift
+    ;;
+
+  -epilog*)
+    epilog=yes
+    epilogopt="$epilogopt $arg"
+    shift
+    ;;
+
+  -mpiinc=*)
+    mpiinc=yes
+    mpiincdir=`echo $arg | sed -e 's/-mpiinc=//' -e 's/ /#/g'`
+    shift
+    ;;
+
+  -mpilib=*)
+    mpilib=yes
+    mpilibdir=`echo $arg | sed -e 's/-mpilib=//'`
+    shift
+    ;;
+
+  -mpilibrary=*)
+    mpilibrary=yes
+    mpilibraryspec=`echo $arg | sed -e 's/-mpilibrary=//' -e 's/ /#/g'`
+    mpiopt=-mpilibrary="$mpilibraryspec"
+    shift
+    ;;
+
+  -mpi)
+    mpi=yes
+    shift
+    ;;
+
+  -pdt=*)
+    pdt=yes
+    pdtdir=`echo $arg | sed -e 's/-pdt=//'`
+    shift
+    ;;
+
+  -pdt_c++=*)
+    pdtcxx=yes
+    pdtcxxarg=`echo $arg | sed -e 's/-pdt_c++=//'`
+    pdtcxxopt=-pdt_c++=$pdtcxxarg
+    shift
+    ;;
+
+  -tag=*)
+    tag=yes
+    tautag=`echo $arg | sed -e 's/-tag=//'`
+    tagopt=-tag=$tautag
+    shift
+    ;;
+
+  -pdtcompdir=*)
+    pdtcomp=yes
+    pdtcompdir=`echo $arg | sed -e 's/-pdtcompdir=//'`
+    shift
+    ;;
+
+  -prefix=*)
+    tauprefix=`echo $arg | sed -e 's/-prefix=//' -e 's/ /_/g'`
+    shift
+    ;;
+
+  -exec-prefix=*)
+    tauexecprefix=`echo $arg | sed -e 's/-exec-prefix=//' -e 's/ /_/g'`
+    shift
+    ;;
+
+  -vtf=*)
+    vtf=yes
+    vtfdir=`echo $arg | sed -e 's/-vtf=//'`
+    vtfopt=-vtf=$vtfdir
+    shift
+    ;;
+
+  -vampirtrace*)
+    vampirtrace=yes
+    vptopt="$vptopt $arg"
+    shift
+    ;;
+
+  -otf=*)
+    otf=yes
+    otfdir=`echo $arg | sed -e 's/-otf=//'`
+    otfopt=-otf=$otfdir
+    shift
+    ;;
+
+  -j=*)
+    processors=`echo $arg | sed -e 's/-j=//'`
+    parallel=-j$processors
+    shift
+    ;;
+
+  -j)
+    parallel=$arg
+    shift
+    ;;
+
+  -help)
+    echo "TAU Configuration Utility "
+    echo "***********************************************************************"
+    echo "Usage: installtau [OPTIONS]"
+    echo "  where [OPTIONS] are:"
+    echo "-arch=<arch>  "
+    echo "-fortran=<compiler>  "
+    echo "-cc=<compiler>   "
+    echo "-c++=<compiler>   "
+    echo "-useropt=<options>  "
+    echo "-pdt=<pdtdir>  "
+    echo "-pdtcompdir=<compdir>  "
+    echo "-pdt_c++=<C++ Compiler>  "
+    echo "-papi=<papidir>  "
+    echo "-vtf=<vtfdir>  "
+    echo "-otf=<otfdir>  "
+    echo "-dyninst=<dyninstdir>  "
+    echo "-mpi"
+    echo "-mpiinc=<mpiincdir>  "
+    echo "-mpilib=<mpilibdir>  "
+    echo "-mpilibrary=<mpilibrary>  "
+    echo "-perfinc=<dir> "
+    echo "-perflib=<dir> "
+    echo "-perflibrary=<library> "
+    echo "-tag=<unique name> "
+    echo "-opari  "
+    echo "-epilog=<epilogdir>  "
+    echo "-epiloginc=<absolute path to epilog include dir> (<epilog>/include default) "
+    echo "-epilogbin=<absolute path to epilog bin dir> (<epilog>/bin default)  "
+    echo "-epiloglib=<absolute path to epilog lib dir> (<epilog>/lib default)  "
+    echo "-prefix=<dir>  "
+    echo "-exec-prefix=<dir>  "
+    echo "-j=<num processes for parallel make>  (just -j for full parallel) "
+    shift
+    exit
+    ;;
+
+  *)
+    echo "WARNING: Command line switch \`$arg' not recognized, passing to configure" 1>&2
+    extraopts="$extraopts $arg"
+    ;;
+  esac
+done
+
+# Take care of MPI options
+if [ $mpi = yes ] ; then
+  mpiopts="$mpiopts -mpi"
+fi
+
+if [ $mpiinc = yes ] ; then
+  mpiopts="$mpiopts -mpiinc=$mpiincdir"
+fi
+
+if [ $mpilib = yes ] ; then
+  mpiopts="$mpiopts -mpilib=$mpilibdir"
+fi
+
+if [ $mpilibrary = yes ] ; then
+  mpiopts="$mpiopts -mpilibrary=$mpilibraryspec"
+fi
+
+
+# Add tauprefix to tagopt $extraopts
+if [ $tauprefix != unknown ] ; then
+  tagopt="$tagopt $extraopts -prefix=$tauprefix"
+fi
+
+# Add exec-prefix to tagopt $extraopts
+if [ $tauexecprefix != unknown ] ; then
+  tagopt="$tagopt $extraopts -exec-prefix=$tauexecprefix"
+fi
+
+# Take care of wish version prompt
+echo " " > wishver
+
+# Now we compose the arguments
+if [ $pdt = yes ] ; then
+    pdtopt="-pdt=$pdtdir $pdtcxxopt"
+    if [ $pdtcomp = yes ] ; then
+	pdtopt="-pdt=$pdtdir $pdtcxxopt -pdtcompdir=$pdtcompdir"
+    fi
+fi
+
+if [ $arch = yes ] ; then
+    archopt="-arch=$archdir"
+fi
+
+if [ $fortran = yes ] ; then
+    fortrancompiler="-fortran=$fortranspec"
+fi
+
+if [ $cc = yes ] ;  then
+    ccompiler="-cc=$ccspec"
+fi
+
+if [ $cxx = yes ] ; then
+    ccompiler="$ccompiler -c++=$cxxspec"
+fi
+
+if [ $useropt = yes ] ; then
+    useropts="-useropt=$useroptspec"
+fi
+
+# options common to all builds
+common="$archopt $ccompiler $fortrancompiler $useropts $tagopt $extraopts -iowrapper"
+
+# configure TAU
+if [ "x$mpiopts" != "x" ] ; then
+    # configure all versions with MPI
+
+    # PDT
+    echo "Configuring with ./configure $common $pdtopt $mpiopts"
+    ./configure $common $pdtopt $mpiopts <wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+
+    # configure with perflib using perfopts
+    if [ $perf = yes ] ; then
+	echo "Configuring with ./configure $common $pdtopt $mpiopts $perfopts"
+	./configure $common $pdtopt $mpiopts $perfopts <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+
+    # -DEPTHLIMIT
+    echo "Configuring with ./configure $common $pdtopt $mpiopts -DEPTHLIMIT"
+    ./configure $common $pdtopt $mpiopts -DEPTHLIMIT <wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+
+    # -PROFILEPARAM
+    echo "Configuring with ./configure $common $pdtopt $mpiopts -PROFILEPARAM"
+    ./configure $common $pdtopt $mpiopts -PROFILEPARAM <wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+
+    # Epilog
+    if [ $epilog = yes ] ; then
+	echo "Configuring with ./configure $common $pdtopt $mpiopts -TRACE $vtfopt $otfopt $epilogopt $papiopt"
+	./configure $common $pdtopt $mpiopts -TRACE $vtfopt $otfopt $epilogopt $papiopt <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+
+    # VampirTrace
+    if [ $vampirtrace = yes ] ; then
+	echo "Configuring with ./configure $common $pdtopt $mpiopts -TRACE $vtfopt $otfopt $vptopt $papiopt"
+	./configure $common $pdtopt $mpiopts -TRACE $vtfopt $otfopt $vptopt $papiopt <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+    
+    if [ $papi = yes ] ; then
+      # PAPI
+      echo "Configuring with ./configure $common $pdtopt $mpiopts $papiopt "
+      ./configure $common $pdtopt $mpiopts $papiopt <wishver
+      make clean; make $parallel install $TAU_MAKE_OPT
+      echo "Configuring with ./configure $common $pdtopt $mpiopts $papiopt -PROFILEPHASE"
+      ./configure $common $pdtopt $mpiopts $papiopt -PROFILEPHASE <wishver
+      make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+
+    if [ $opari = yes ] ; then
+	echo "Configuring with ./configure $common $pdtopt $mpiopts -opari"
+	./configure $common $pdtopt $mpiopts -opari -openmp <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi 
+
+    if [ $opari = yes -a $papi = yes ] ; then
+	echo "Configuring with ./configure $common $pdtopt $mpiopts -opari $papiopt "
+	./configure $common $pdtopt $mpiopts -opari -openmp $papiopt <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi 
+
+fi
+# MPI options are over
+
+
+if [ $opari = yes ] ; then
+    echo "Configuring with $common $pdtopt -opari -openmp "
+    ./configure $common $pdtopt -opari -openmp <wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+    
+    if [ $papi = yes ] ; then 
+	echo "Configuring with $common $pdtopt -opari -openmp $papiopt  "
+	./configure $common $pdtopt -opari -openmp $papiopt <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+fi 
+
+if [ $arch = no -o $archdir != bgl -a $archdir != xt3 ] ; then
+      # Just Pthread
+    echo "Configuring with $common $pdtopt -pthread "
+    ./configure $common $pdtopt -pthread <wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+fi
+
+if [ $papi = yes ] ; then 
+    # PAPI with PTHREAD 
+    if [ $arch = no -o $archdir != bgl -a $archdir != xt3 ] ; then
+	echo "Configuring with -pthread $papiopt  "
+	./configure $common $pdtopt -pthread $papiopt  <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+    
+    # PAPI with -pdt 
+    if [ $pdt = yes ] ; then
+	echo "Configuring with $common $pdtopt $papiopt "
+	./configure $common $pdtopt $papiopt <wishver
+	make clean; make $parallel install $TAU_MAKE_OPT
+    fi
+fi
+
+if [ $dyninst = yes ] ; then
+    echo "Configuring with $common -dyninst=$dyninstdir "
+    ./configure $common -dyninst=$dyninstdir < wishver
+    make clean; make $parallel install $TAU_MAKE_OPT
+fi
+
+# Serial library
+echo "Configuring with $common $pdtopt "
+./configure $common $pdtopt $vtfopt $otfopt <wishver
+make clean; make $parallel install $TAU_MAKE_OPT
+
+# Set file permissions
+chmod -R go+rX *
+
+/bin/rm -f wishver

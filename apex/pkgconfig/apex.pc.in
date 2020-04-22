@@ -1,0 +1,15 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+extralibs=@extralibs@ 
+extralibs_rpath=@extralibs_rpath@ 
+extraincludes=@extraincludes@
+
+Name: APEX
+Description: Autonomic Performance Environment for eXascale (XPRESS)
+Requires: 
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lapex ${extralibs} -Wl,-rpath,${libdir} ${extralibs_rpath} -lstdc++
+Cflags: -I${includedir} -DHAVE_APEX ${extraincludes}
+

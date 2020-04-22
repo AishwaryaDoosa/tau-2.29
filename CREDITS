@@ -1,0 +1,79 @@
+/******************************************************************* 
+ *                                                                 *
+ *       	Tuning and Analysis Utilities Credits  		   *
+ *                           Version 2.28.1                        *
+ *                                                                 *
+ *******************************************************************
+ *    For installation help, see INSTALL.                          *
+ *    For release notes, see README.                               *
+ *    For licensing information, see LICENSE.                      *
+ *    For a tutorial on using TAU, open html/index.html in your    *
+ *        web browser.                                             *
+ *    For more information, including updates and new releases,    *
+ *        and documentation, see                                   *
+ *        http://tau.uoregon.edu                                   *
+ *    For help, reporting bugs, and making suggestions, please     *
+ *        send e-mail to tau-bugs@cs.uoregon.edu                   *
+ *******************************************************************/
+
+
+TAU Portable Profiling:
+-----------------------
+Sameer Shende, University of Oregon
+Wyatt Spear, University of Oregon
+Kevin Huck, University of Oregon
+Nicholas Chaimov, ParaTools, Inc.
+Srinivasan Ramesh, University of Oregon
+Robert Lim, University of Oregon
+Izaak Beekman, ParaTools, Inc. 
+Peter Beckman, Argonne National Laboratory
+Bernd Mohr, Research Centre Jülich, ZAM, Germany
+
+
+
+Principal Investigators:
+------------------------
+Prof. Allen Malony, University of Oregon
+
+Thanks to: 
+----------
+Brian Miller
+Andrew Wissink
+Craig Rasmussen
+Bronis R. de Supinski
+Alan Morris
+Scott Biersdorff
+Aroon Nataraj
+Janice Cuny
+Matt Sottile
+Soren Rasmussen
+Jeff Brown
+Markus Geimer
+Rod Oldehoeft
+Todd Veldhuizen
+Suvas Vajracharya
+Aroon Nataraj
+Aurele Maheo
+Lars Hansen
+Kurt Windisch
+Darryl Brown
+Julian Cummings
+Stephen Smith
+Bill Humphrey
+John Reynders
+Scott Haney
+James Crotinger
+Timothy Williams
+Susan Post
+Anthony Chan
+David Skinner
+Rolf Rabenseifner
+NAS Parallel Benchmarks Group for allowing us to use their code as an example
+of TAU instrumentation with Fortran and MPI (http://www.nas.nasa.gov/NAS/NPB/).
+The Jumpshot group at Argonne National Laboratories for providing Jumpshot
+and SLOG2 packages. 
+UFL UPC Group (Adam Leko) for building the GPSHMEM/PGPSHMEM wrappers for TAU.
+
+The TAU project is directed by Prof. Allen D. Malony at the University of Orgeon.
+
+

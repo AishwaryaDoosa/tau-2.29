@@ -1,0 +1,7 @@
+if(HPX_WITH_APEX)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.hpx)
+    return()
+else()
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.standalone)
+    return()
+endif()
